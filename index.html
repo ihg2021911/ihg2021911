@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Number Fusion - Final System</title>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        :root { --bg: #0f172a; --card: #1e293b; --primary: #38bdf8; --accent: #f43f5e; --success: #10b981; --admin-gold: #fbbf24; --text: #f8fafc; --muted: #94a3b8; }
+        body { font-family: 'Pretendard', sans-serif; background-color: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; overflow: hidden; }
+        .game-container { background-color: var(--card); padding: 30px; border-radius: 24px; box-shadow: 0 25px 50px rgba(0,0,0,0.5); width: 100%; max-width: 500px; text-align: center; border: 1px solid rgba(255,255,255,0.1); position: relative; }
+        .game-title { font-size: 28px; font-weight: 900; color: var(--primary); margin-bottom: 20px; text-shadow: 0 0 20px rgba(56, 189, 248, 0.3); }
+        input { width: 100%; padding: 14px; margin-bottom: 10px; border: 2px solid #334155; border-radius: 12px; background: #0f172a; color: #fff; text-align: center; font-size: 16px; box-sizing: border-box; }
+        button { background-color: var(--primary); color: #0f172a; border: none; padding: 14px; font-weight: 800; border-radius: 12px; cursor: pointer; width: 100%; margin-top: 8px; font-size: 16px; transition: 0.2s; }
+        button:disabled { background-color: #1e293b; color: #475569; border: 1px solid #334155; cursor: not-allowed; opacity: 0.6; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--accent); color: white; }
+        .btn-outline { background: transparent; border: 1px solid #475569; color: var(--text); }
+        .hidden { display: none !important; }
+        .player-card { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; background: #0f172a; border-radius: 14px; margin-bottom: 8px; border: 1px solid #334155; }
+        #timerDisplay { font-size: 64px; font-weight: 900; color: var(--accent); margin: 10px 0; }
+        .turn-box { padding: 20px; border-radius: 18px; border: 2px solid var(--primary); color: var(--primary); font-size: 18px; font-weight: 800; margin: 15px 0; background: rgba(56, 189, 248, 0.05); transition: 0.3s; }
+        .is-not-me { border-color: #334155; color: #64748b; background: rgba(0,0,0,0.1); opacity: 0.7; }
+        .num-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 20px 0; max-height: 180px; overflow-y: auto; padding: 15px; background: #0f172a; border-radius: 16px; }
+        .num-btn { padding: 12px 5px; font-size: 13px; background: #1e293b; border-radius: 10px; border: 1px solid #475569; color: white; cursor: pointer; }
+        .num-btn.selected { background: var(--primary); color: #0f172a; font-weight: bold; border-color: white; }
+        .num-btn.has-rule { color: var(--success); border-color: var(--success); border-style: dashed; }
+        .admin-room-card { display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 15px; border-radius: 12px; margin-bottom: 10px; border: 1px solid var(--admin-gold); }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <div id="setupScreen">
+        <div class="game-title">NUMBER FUSION</div>
+        <input type="text" id="playerName" placeholder="닉네임">
+        <input type="text" id="roomName" placeholder="방 제목">
+        <input type="password" id="roomPassword" placeholder="비밀번호">
+        <button id="joinBtn">로그인 및 입장</button>
+        <div id="lobbyRoomList" style="margin-top:25px; text-align:left; max-height:120px; overflow-y:auto; border-top: 1px solid #334155; padding-top: 15px;"></div>
+    </div>
+
+    <div id="masterAdminScreen" class="hidden">
+        <h2 style="color:var(--admin-gold);">🛡️ SYSTEM OVERLORD</h2>
+        <div id="fullRoomList"></div>
+        <button onclick="location.reload()" class="btn-outline" style="margin-top:20px;">시스템 로그아웃</button>
+    </div>
+
+    <div id="waitingScreen" class="hidden">
+        <h2 id="roomDisplayTitle" style="color: var(--primary);">로비</h2>
+        <div id="hostSettings" class="hidden" style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 16px; margin-bottom: 20px;">
+            <div style="display:flex; gap:10px; margin-bottom: 10px;">
+                <div style="flex:1;"><input type="number" id="editTargetNum" placeholder="목표"></div>
+                <div style="flex:1;"><input type="number" id="editTimeLimit" placeholder="시간"></div>
+            </div>
+            <button id="updateSettingsBtn" class="btn-success">설정 저장</button>
+        </div>
+        <div id="playerList" style="margin: 20px 0;"></div>
+        <button id="startBtn" class="btn-success hidden">게임 시작</button>
+        <button id="leaveBtn" class="btn-outline">방 나가기</button>
+    </div>
+
+    <div id="gameScreen" class="hidden">
+        <div id="timerDisplay">10</div>
+        <div id="turnIndicator" class="turn-box">접속 중...</div>
+        <div id="inputArea">
+            <input type="text" id="playerInput" autocomplete="off" placeholder="정답 입력">
+            <button id="submitBtn">확인 제출</button>
+        </div>
+        <div id="changeArea" class="hidden">
+            <h3 style="color:var(--success);">🏆 승자: 규칙 생성</h3>
+            <div id="numGrid" class="num-grid"></div>
+            <input type="text" id="customWord" placeholder="바꿀 글자/숫자 입력">
+            <button id="confirmWordBtn" class="btn-success">규칙 적용</button>
+        </div>
+        <div id="ruleNotice" class="hidden" style="font-size:20px; color:var(--success); font-weight:900; padding:20px;"></div>
+    </div>
+
+    <div id="gameOverScreen" class="hidden">
+        <h1 style="color:var(--accent);">GAME OVER</h1>
+        <p id="loserMessage"></p>
+        <button id="backToLobbyBtn" class="btn-success">로비로 돌아가기</button>
+        <button id="exitToTitleBtn" class="btn-outline">타이틀로 나가기</button>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue, update, get, remove } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAgnit0eTjNR_gaLKxsdbXHLZqM9cCFRIw",
+        authDomain: "ihg2021911-2d55f.firebaseapp.com",
+        databaseURL: "https://ihg2021911-2d55f-default-rtdb.firebaseio.com",
+        projectId: "ihg2021911-2d55f",
+        appId: "1:506957596965:web:028809322cb55ef1a472cc"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    let myName = "", myId = Math.random().toString(36).substr(2, 9), currentRoomId = "", gameState = {}, timerInterval = null, selectedNum = null;
+
+    onValue(ref(db, 'rooms'), (snap) => {
+        const rooms = snap.val(); const lobby = document.getElementById('lobbyRoomList'); const adminList = document.getElementById('fullRoomList');
+        lobby.innerHTML = ""; adminList.innerHTML = ""; if(!rooms) return;
+        for(let k in rooms) {
+            const r = rooms[k];
+            const div = document.createElement('div'); div.className = 'player-card'; div.innerHTML = `<span>${r.roomName}</span>`;
+            div.onclick = () => { document.getElementById('roomName').value = r.roomName; }; lobby.appendChild(div);
+            const admDiv = document.createElement('div'); admDiv.className = 'admin-room-card';
+            admDiv.innerHTML = `<span><b>${r.roomName}</b></span><button class="btn-danger" style="width:auto; padding:5px 10px;" onclick="masterNukeRoom('${k}')">폭파</button>`;
+            adminList.appendChild(admDiv);
+        }
+    });
+    window.masterNukeRoom = (rid) => { if(confirm("방을 삭제하시겠습니까?")) remove(ref(db, `rooms/${rid}`)); };
+
+    document.getElementById('joinBtn').onclick = async () => {
+        myName = document.getElementById('playerName').value.trim();
+        const rName = document.getElementById('roomName').value.trim();
+        const rPw = document.getElementById('roomPassword').value.trim();
+        if(myName==='admin' && rName==='admin' && rPw==='admin') return showScreen('masterAdminScreen');
+        if(!myName || !rName) return alert("필수 입력");
+        const rRef = ref(db, `rooms/${rName}`); const snap = await get(rRef); const data = snap.val();
+        if(!data) await set(rRef, { roomName: rName, password: rPw||"", status: 'waiting', target: 10, currentCount: 1, turn: 0, timeLimit: 10, players: [{name:myName, id:myId}], rules: {}, lastWinnerId: "", lastRuleMsg: "" });
+        else await update(rRef, { players: [...(data.players||[]), {name:myName, id:myId}] });
+        currentRoomId = rName; showScreen('waitingScreen'); sync();
+    };
+
+    function sync() {
+        onValue(ref(db, `rooms/${currentRoomId}`), (snap) => {
+            const data = snap.val(); if(!data) { location.reload(); return; }
+            const changed = (gameState.status !== data.status) || (gameState.currentCount !== data.currentCount) || (gameState.turn !== data.turn);
+            gameState = data;
+            if(data.status === 'waiting') { showScreen('waitingScreen'); updateLobby(); }
+            else if(['playing', 'changing', 'notifying'].includes(data.status)) { showScreen('gameScreen'); renderGame(changed); }
+            else if(data.status === 'gameOver') { showScreen('gameOverScreen'); document.getElementById('loserMessage').innerText = `${data.loser} 패배!`; clearInterval(timerInterval); }
+        });
+    }
+
+    function renderGame(changed) {
+        const safeTurn = gameState.turn % (gameState.players ? gameState.players.length : 1);
+        const currentPlayer = gameState.players ? gameState.players[safeTurn] : {name:"시스템", id:""};
+        const isMe = currentPlayer.id === myId;
+        const isWinner = gameState.lastWinnerId === myId;
+        const turnBox = document.getElementById('turnIndicator');
+        if(gameState.status === 'notifying') {
+            document.getElementById('inputArea').classList.add('hidden'); document.getElementById('changeArea').classList.add('hidden');
+            document.getElementById('ruleNotice').classList.remove('hidden'); document.getElementById('ruleNotice').innerText = gameState.lastRuleMsg;
+            turnBox.innerText = "🚨 규칙 확인 중..."; turnBox.classList.add('is-not-me'); clearInterval(timerInterval);
+            if(gameState.players && gameState.players[0].id === myId && changed) setTimeout(() => update(ref(db, `rooms/${currentRoomId}`), { status: 'playing' }), 2500);
+        } else if(gameState.status === 'changing') {
+            document.getElementById('inputArea').classList.add('hidden'); document.getElementById('ruleNotice').classList.add('hidden');
+            if(isWinner) {
+                document.getElementById('changeArea').classList.remove('hidden'); turnBox.innerText = "🏆 승자: 규칙 생성";
+                if(changed) { createNumGrid(); startTimer(gameState.timeLimit * 2); }
+            } else {
+                document.getElementById('changeArea').classList.add('hidden'); turnBox.innerText = "승자가 규칙 정하는 중..."; turnBox.classList.add('is-not-me'); clearInterval(timerInterval);
+            }
+        } else if(gameState.status === 'playing') {
+            document.getElementById('inputArea').classList.remove('hidden'); document.getElementById('changeArea').classList.add('hidden'); document.getElementById('ruleNotice').classList.add('hidden');
+            document.getElementById('submitBtn').disabled = !isMe; document.getElementById('playerInput').disabled = !isMe;
+            if(isMe) {
+                turnBox.innerText = "⭐ 내 차례!"; turnBox.classList.remove('is-not-me');
+                if(changed) { document.getElementById('playerInput').value = ""; document.getElementById('playerInput').focus(); startTimer(gameState.timeLimit); }
+            } else {
+                turnBox.innerText = `${currentPlayer.name}의 차례`; turnBox.classList.add('is-not-me'); clearInterval(timerInterval);
+            }
+        }
+    }
+
+    function createNumGrid() {
+        const grid = document.getElementById('numGrid'); grid.innerHTML = "";
+        for(let i=1; i<=gameState.target; i++) {
+            const btn = document.createElement('button'); btn.className = 'num-btn';
+            const displayVal = (gameState.rules && gameState.rules[i.toString()]) ? gameState.rules[i.toString()] : i;
+            btn.innerText = displayVal;
+            if(gameState.rules && gameState.rules[i.toString()]) btn.classList.add('has-rule');
+            btn.onclick = () => { document.querySelectorAll('.num-btn').forEach(b => b.classList.remove('selected')); btn.classList.add('selected'); selectedNum = i.toString(); };
+            grid.appendChild(btn);
+        }
+    }
+
+    document.getElementById('confirmWordBtn').onclick = () => {
+        const word = document.getElementById('customWord').value.trim();
+        if(!selectedNum || !word) return alert("숫자 선택 및 내용 입력 필수");
+        const winnerIndex = gameState.players.findIndex(p => p.id === myId);
+        const nextTurn = (winnerIndex + 1) % gameState.players.length;
+        const newRules = gameState.rules || {}; newRules[selectedNum] = word;
+        update(ref(db, `rooms/${currentRoomId}`), { rules: newRules, status: 'notifying', currentCount: 1, turn: nextTurn, lastWinnerId: "", lastRuleMsg: `[ 규칙 업데이트 ]\n${selectedNum} → ${word}\n다음 사람부터 1 시작!` });
+        selectedNum = null; document.getElementById('customWord').value = "";
+    };
+
+    document.getElementById('submitBtn').onclick = () => {
+        const input = document.getElementById('playerInput').value.trim();
+        const curStr = gameState.currentCount.toString();
+        const correct = (gameState.rules && gameState.rules[curStr]) ? gameState.rules[curStr] : curStr;
+        if(input === correct) {
+            clearInterval(timerInterval);
+            if(gameState.currentCount >= gameState.target) update(ref(db, `rooms/${currentRoomId}`), { status: 'changing', lastWinnerId: myId });
+            else update(ref(db, `rooms/${currentRoomId}`), { currentCount: gameState.currentCount + 1, turn: (gameState.turn + 1) % gameState.players.length });
+        } else update(ref(db, `rooms/${currentRoomId}`), { status: 'gameOver', loser: myName });
+    };
+
+    // [중요] 입력창에서 엔터키 누르면 제출 버튼 클릭
+    document.getElementById('playerInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !document.getElementById('submitBtn').disabled) {
+            document.getElementById('submitBtn').click();
+        }
+    });
+
+    document.getElementById('backToLobbyBtn').onclick = () => {
+        update(ref(db, `rooms/${currentRoomId}`), { status: 'waiting', currentCount: 1, turn: 0, rules: {}, lastWinnerId: "", lastRuleMsg: "" });
+    };
+
+    document.getElementById('exitToTitleBtn').onclick = async () => {
+        if (!confirm("방에서 나가고 타이틀로 돌아가시겠습니까?")) return;
+        await leaveRoomLogic();
+    };
+
+    document.getElementById('leaveBtn').onclick = async () => {
+        if (!confirm("정말 방에서 나가시겠습니까?")) return;
+        await leaveRoomLogic();
+    };
+
+    async function leaveRoomLogic() {
+        const rRef = ref(db, `rooms/${currentRoomId}`);
+        const snap = await get(rRef);
+        const data = snap.val();
+        if (data && data.players) {
+            const newPlayers = data.players.filter(p => p.id !== myId);
+            if (newPlayers.length === 0) await remove(rRef);
+            else await update(rRef, { players: newPlayers });
+        }
+        currentRoomId = ""; gameState = {}; clearInterval(timerInterval);
+        showScreen('setupScreen');
+    }
+
+    function updateLobby() {
+        if(!gameState.players) return;
+        const isHost = gameState.players[0].id === myId;
+        document.getElementById('playerList').innerHTML = gameState.players.map((p,i)=>`<div class="player-card">${p.name}${i===0?' (방장)':''}</div>`).join('');
+        document.getElementById('hostSettings').classList.toggle('hidden', !isHost);
+        document.getElementById('startBtn').classList.toggle('hidden', !isHost);
+        if(isHost) { document.getElementById('editTargetNum').value = gameState.target; document.getElementById('editTimeLimit').value = gameState.timeLimit; }
+    }
+
+    document.getElementById('startBtn').onclick = () => update(ref(db, `rooms/${currentRoomId}`), { status: 'playing', currentCount: 1, turn: 0, rules: {} });
+    document.getElementById('updateSettingsBtn').onclick = () => update(ref(db, `rooms/${currentRoomId}`), { target: parseInt(document.getElementById('editTargetNum').value), timeLimit: parseInt(document.getElementById('editTimeLimit').value) });
+    function startTimer(sec){ clearInterval(timerInterval); let left=sec; timerInterval=setInterval(()=>{ document.getElementById('timerDisplay').innerText=left; if(left--<=0){ clearInterval(timerInterval); update(ref(db, `rooms/${currentRoomId}`), { status:'gameOver', loser:myName }); } }, 1000); }
+    function showScreen(id){ ['setupScreen','waitingScreen','gameScreen','gameOverScreen','masterAdminScreen'].forEach(s=>document.getElementById(s).classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); }
+</script>
+</body>
+</html>
